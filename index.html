@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimalist Investment Calculator | The Money Essential</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Minimalist Color Palette & Typography */
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --secondary: #60a5fa;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --radius: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .calculator {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { margin: 5px 0 0; color: var(--text-muted); font-size: 14px; }
+
+        /* Navigation Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; background: var(--bg-color); padding: 6px; border-radius: 12px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; font-size: 14px; font-weight: 600; color: var(--text-muted); border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
+        .tab-btn.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* Toggle */
+        .toggle-box { display: flex; align-items: center; padding: 15px; background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: 12px; margin-bottom: 30px; color: var(--primary); font-size: 13px; font-weight: 500; }
+        .toggle-box input { margin-right: 12px; width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+
+        /* Input Fields */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
+        .input-wrapper { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border 0.2s; }
+        .input-wrapper:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        .prefix, .suffix { padding: 12px 15px; background: #f9fafb; color: var(--text-muted); font-size: 14px; font-weight: 500; }
+        .prefix { border-right: 1px solid var(--border); }
+        .suffix { border-left: 1px solid var(--border); }
+        .input-wrapper input { flex: 1; padding: 12px 15px; border: none; outline: none; font-size: 16px; color: var(--text-main); font-weight: 500; width: 100%; }
+
+        /* Results Area */
+        .results { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+        .result-card { padding: 20px 15px; background: #f9fafb; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
+        .result-card.highlight { background: var(--primary); color: white; border-color: var(--primary); }
+        .result-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+        .highlight .result-label { color: #bfdbfe; }
+        .result-value { margin: 0; font-size: 20px; font-weight: 700; }
+
+        /* Chart Area */
+        .chart-container { position: relative; height: 220px; width: 100%; margin-top: 35px; padding-top: 25px; border-top: 1px dashed var(--border); }
+
+        /* Footer & Copyright */
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: var(--text-muted); line-height: 1.8; }
+        .footer .copyright { font-weight: 600; color: var(--text-main); margin-bottom: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="calculator">
+    <div class="header">
+        <h1>Financial Planner</h1>
+        <p>Calculate your investments with clarity</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'SIPTab')">SIP</button>
+        <button class="tab-btn" onclick="switchTab(event, 'LumpsumTab')">Lumpsum</button>
+        <button class="tab-btn" onclick="switchTab(event, 'GoalTab')">Goal</button>
+    </div>
+
+    <div class="toggle-box">
+        <label style="display: flex; align-items: center; cursor: pointer; width: 100%;">
+            <input type="checkbox" id="inflationToggle" checked onchange="calculate()">
+            Adjust for 6% Inflation (Shows Real Value)
+        </label>
+    </div>
+
+    <div id="SIPTab" class="tab-content active">
+        <div class="input-group">
+            <label>Monthly Investment</label>
+            <div class="input-wrapper"><span class="prefix">₹</span><input type="number" id="sipAmount" value="5000" oninput="calculate()"></div>
+        </div>
+        <div class="input-group">
+            <label>Time Horizon</label>
+            <div class="input-wrapper"><input type="number" id="sipYears" value="10" oninput="calculate()"><span class="suffix">Yrs</span></div>
+        </div>
+        <div class="input-group">
+            <label>Expected Return</label>
+            <div class="input-wrapper"><input type="number" id="sipRate" value="12" oninput="calculate()"><span class="suffix">% p.a.</span></div>
+        </div>
+
+        <div class="results">
+            <div class="result-card">
+                <span class="result-label">Total Invested</span>
+                <p class="result-value" id="sipInvested" style="color: var(--text-main);">₹0</p>
+            </div>
+            <div class="result-card highlight">
+                <span class="result-label">Maturity Value</span>
+                <p class="result-value" id="sipMaturity">₹0</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="LumpsumTab" class="tab-content">
+        <div class="input-group">
+            <label>One-time Investment</label>
+            <div class="input-wrapper"><span class="prefix">₹</span><input type="number" id="lumpAmount" value="100000" oninput="calculate()"></div>
+        </div>
+        <div class="input-group">
+            <label>Time Horizon</label>
+            <div class="input-wrapper"><input type="number" id="lumpYears" value="10" oninput="calculate()"><span class="suffix">Yrs</span></div>
+        </div>
+        <div class="input-group">
+            <label>Expected Return</label>
+            <div class="input-wrapper"><input type="number" id="lumpRate" value="12" oninput="calculate()"><span class="suffix">% p.a.</span></div>
+        </div>
+
+        <div class="results">
+            <div class="result-card">
+                <span class="result-label">Total Invested</span>
+                <p class="result-value" id="lumpInvested" style="color: var(--text-main);">₹0</p>
+            </div>
+            <div class="result-card highlight">
+                <span class="result-label">Maturity Value</span>
+                <p class="result-value" id="lumpMaturity">₹0</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="GoalTab" class="tab-content">
+        <div class="input-group">
+            <label>Target Goal Amount</label>
+            <div class="input-wrapper"><span class="prefix">₹</span><input type="number" id="goalAmount" value="10000000" oninput="calculate()"></div>
+        </div>
+        <div class="input-group">
+            <label>Time Horizon</label>
+            <div class="input-wrapper"><input type="number" id="goalYears" value="10" oninput="calculate()"><span class="suffix">Yrs</span></div>
+        </div>
+        <div class="input-group">
+            <label>Expected Return</label>
+            <div class="input-wrapper"><input type="number" id="goalRate" value="12" oninput="calculate()"><span class="suffix">% p.a.</span></div>
+        </div>
+
+        <div class="results">
+            <div class="result-card highlight">
+                <span class="result-label">Required Monthly SIP</span>
+                <p class="result-value" id="goalSIP">₹0</p>
+            </div>
+            <div class="result-card highlight">
+                <span class="result-label">OR Required Lumpsum</span>
+                <p class="result-value" id="goalLumpsum">₹0</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="investmentChart"></canvas>
+    </div>
+
+    <div class="footer">
+        <span class="copyright">&copy; 2026 The Money Essential</span><br>
+        ARN — 325735 • AMFI Registered Mutual Fund Distributor<br>
+        harshiltrivedi64@gmail.com<br>
+        <span style="display:block; margin-top:10px; opacity:0.7;">⚠ Calculations are estimates for illustrative purposes only.</span>
+    </div>
+</div>
+
+<script>
+    const INFLATION = 0.06;
+    let myChart = null; 
+
+    function format(num) {
+        return "₹" + Math.round(num).toLocaleString('en-IN');
+    }
+
+    function applyInflation(val, years) {
+        return document.getElementById('inflationToggle').checked ? val / Math.pow(1 + INFLATION, years) : val;
+    }
+
+    // Updated Chart Function with Percentage Tooltips
+    function updateChart(invested, returns) {
+        const ctx = document.getElementById('investmentChart').getContext('2d');
+        if(returns < 0) returns = 0; 
+
+        if (myChart) {
+            myChart.destroy(); 
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Total Invested', 'Est. Returns'],
+                datasets: [{
+                    data: [invested, returns],
+                    backgroundColor: ['#2563eb', '#60a5fa'], 
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%', 
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: { family: '-apple-system, BlinkMacSystemFont, sans-serif', size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)', 
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                let total = context.chart._metasets[context.datasetIndex].total;
+                                let value = context.raw;
+                                let percentage = ((value / total) * 100).toFixed(1) + '%';
+                                
+                                return ` ${context.label}: ${format(value)} (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function switchTab(evt, tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        
+        document.getElementById(tabName).classList.add('active');
+        evt.currentTarget.classList.add('active');
+        calculate();
+    }
+
+    function calculate() {
+        const activeTab = document.querySelector('.tab-content.active').id;
+        
+        if (activeTab === 'SIPTab') {
+            let p = parseFloat(document.getElementById('sipAmount').value) || 0;
+            let y = parseFloat(document.getElementById('sipYears').value) || 0;
+            let r = parseFloat(document.getElementById('sipRate').value) || 0;
+
+            let i = r / 12 / 100;
+            let m = y * 12;
+            let maturity = p * ((Math.pow(1 + i, m) - 1) / i) * (1 + i);
+            
+            let finalInvested = p * m;
+            let finalMaturity = applyInflation(maturity, y);
+            let finalReturns = finalMaturity - finalInvested;
+
+            document.getElementById('sipInvested').innerText = format(finalInvested);
+            document.getElementById('sipMaturity').innerText = format(finalMaturity);
+            
+            updateChart(finalInvested, finalReturns);
+        } 
+        
+        else if (activeTab === 'LumpsumTab') {
+            let p = parseFloat(document.getElementById('lumpAmount').value) || 0;
+            let y = parseFloat(document.getElementById('lumpYears').value) || 0;
+            let r = parseFloat(document.getElementById('lumpRate').value) || 0;
+
+            let maturity = p * Math.pow(1 + (r / 100), y);
+            
+            let finalInvested = p;
+            let finalMaturity = applyInflation(maturity, y);
+            let finalReturns = finalMaturity - finalInvested;
+
+            document.getElementById('lumpInvested').innerText = format(finalInvested);
+            document.getElementById('lumpMaturity').innerText = format(finalMaturity);
+
+            updateChart(finalInvested, finalReturns);
+        }
+
+        else if (activeTab === 'GoalTab') {
+            let fv = parseFloat(document.getElementById('goalAmount').value) || 0;
+            let y = parseFloat(document.getElementById('goalYears').value) || 0;
+            let r = parseFloat(document.getElementById('goalRate').value) || 0;
+
+            if (document.getElementById('inflationToggle').checked) {
+                fv = fv * Math.pow(1 + INFLATION, y); 
+            }
+
+            let m = y * 12;
+            let i = r / 12 / 100;
+
+            let sip = (i > 0) ? fv / ((((Math.pow(1 + i, m) - 1) / i)) * (1 + i)) : fv / m;
+            let lump = fv / Math.pow(1 + (r / 100), y);
+
+            document.getElementById('goalSIP').innerText = format(sip);
+            document.getElementById('goalLumpsum').innerText = format(lump);
+
+            let totalInvestedViaSIP = sip * m;
+            let wealthGained = fv - totalInvestedViaSIP;
+            
+            updateChart(totalInvestedViaSIP, wealthGained);
+        }
+    }
+
+    window.onload = calculate;
+</script>
+
+</body>
+</html>
